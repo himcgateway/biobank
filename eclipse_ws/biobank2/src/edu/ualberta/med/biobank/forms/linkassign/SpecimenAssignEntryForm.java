@@ -1024,8 +1024,7 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
      * assign multiple: list of container types
      */
     @SuppressWarnings("nls")
-    private void createPalletTypesViewer(Composite parent)
-        throws ApplicationException {
+    private void createPalletTypesViewer(Composite parent) throws ApplicationException {
         initPalletContainerTypes();
         palletTypesViewer = widgetCreator.createComboViewer(
             parent,

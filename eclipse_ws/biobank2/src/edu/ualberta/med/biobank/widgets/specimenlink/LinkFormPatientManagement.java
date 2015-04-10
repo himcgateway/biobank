@@ -1,4 +1,4 @@
-package edu.ualberta.med.biobank.forms.linkassign;
+package edu.ualberta.med.biobank.widgets.specimenlink;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
 import org.eclipse.core.databinding.observable.value.WritableValue;
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.Status;
@@ -18,6 +19,7 @@ import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.FocusAdapter;
 import org.eclipse.swt.events.FocusEvent;
+import org.eclipse.swt.events.KeyListener;
 import org.eclipse.swt.events.ModifyEvent;
 import org.eclipse.swt.events.ModifyListener;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -51,9 +53,18 @@ import edu.ualberta.med.biobank.model.SpecimenType;
 import edu.ualberta.med.biobank.widgets.BiobankLabelProvider;
 import gov.nih.nci.system.applicationservice.ApplicationException;
 
+/**
+ * A widget that displays a text field to enter a patient number, and pull down combo boxes to
+ * select a processing event and a collection event visit number.
+ *
+ * Once the user enters the patient number, the server is queried for possible processing events and
+ * collection events. Once the server responds, the combo boxes are populated with the possible
+ * choices.
+ *
+ */
 public class LinkFormPatientManagement {
-    private static final I18n i18n = I18nFactory
-        .getI18n(LinkFormPatientManagement.class);
+
+    private static final I18n i18n = I18nFactory.getI18n(LinkFormPatientManagement.class);
 
     private boolean patientNumberTextModified = false;
     protected BgcBaseText patientNumberText;
@@ -64,9 +75,8 @@ public class LinkFormPatientManagement {
 
     private final BgcWidgetCreator widgetCreator;
 
-    private final AbstractSpecimenAdminForm specimenAdminForm;
+    private final ILinkFormPatientManagementParent widgetParent;
 
-    private PatientTextCallback patientTextCallback;
     private Label patientLabel;
     private NonEmptyStringValidator patientValidator;
     // private Label cEventTextLabel;
@@ -84,15 +94,25 @@ public class LinkFormPatientManagement {
     private Button pEventListCheck;
     private boolean settingCollectionEvent;
     private static Boolean pEventListCheckSelection = true;
+    private final Logger activityLogger;
 
     public LinkFormPatientManagement(BgcWidgetCreator widgetCreator,
-        AbstractSpecimenAdminForm specimenAdminForm) {
+        ILinkFormPatientManagementParent widgetParent, Logger activityLogger) {
         this.widgetCreator = widgetCreator;
-        this.specimenAdminForm = specimenAdminForm;
+        this.widgetParent = widgetParent;
+        this.activityLogger = activityLogger;
+    }
+
+    public void addPatientNumberKeyListener(KeyListener listener) {
+        patientNumberText.addKeyListener(listener);
+    }
+
+    public void removePatientNumberKeyListener(KeyListener listener) {
+        patientNumberText.removeKeyListener(listener);
     }
 
     @SuppressWarnings("nls")
-    protected void createPatientNumberText(Composite parent) {
+    public void createPatientNumberText(Composite parent) {
         patientLabel = widgetCreator.createLabel(parent,
             Patient.PropertyName.PNUMBER.toString());
         patientLabel.setLayoutData(new GridData(
@@ -113,9 +133,7 @@ public class LinkFormPatientManagement {
             public void focusLost(FocusEvent e) {
                 if (patientNumberTextModified) {
                     initFieldWithPatientSelection();
-                    if (patientTextCallback != null) {
-                        patientTextCallback.focusLost();
-                    }
+                    widgetParent.focusLost();
                 }
                 patientNumberTextModified = false;
                 viewerProcessingEvents.getCombo().setFocus();
@@ -125,19 +143,15 @@ public class LinkFormPatientManagement {
             @Override
             public void modifyText(ModifyEvent e) {
                 patientNumberTextModified = true;
-                if (viewerCollectionEvents != null)
+                if (viewerCollectionEvents != null) {
                     viewerCollectionEvents.setInput(null);
-                if (patientTextCallback != null) {
-                    patientTextCallback.textModified();
                 }
+                widgetParent.textModified();
             }
         });
-        patientNumberText
-            .addKeyListener(specimenAdminForm.textFieldKeyListener);
-        setFirstControl();
     }
 
-    protected void createEventsWidgets(Composite compositeFields) {
+    public void createEventsWidgets(Composite compositeFields) {
         createProcessingEventWidgets(compositeFields);
         createCollectionEventWidgets(compositeFields);
     }
@@ -183,14 +197,14 @@ public class LinkFormPatientManagement {
                     ProcessingEventWrapper pe =
                         (ProcessingEventWrapper) selection.getFirstElement();
                     if (pe != null) {
-                        specimenAdminForm.appendLog(NLS.bind(
+                        activityLogger.trace(NLS.bind(
                             "Processing event {0} / {1} selected",
                             pe.getWorksheet(), pe.getFormattedCreatedAt()));
                     }
                 }
             }
         });
-        pEventListCheck = specimenAdminForm.getToolkit().createButton(compositeFields,
+        pEventListCheck = widgetParent.createButton(compositeFields,
             // TR: checkbox text
             i18n.tr("Last 7 days"), SWT.CHECK);
         pEventListCheck.setSelection(pEventListCheckSelection);
@@ -249,7 +263,7 @@ public class LinkFormPatientManagement {
                     CollectionEventWrapper ce =
                         (CollectionEventWrapper) selection.getFirstElement();
                     if (ce != null) {
-                        specimenAdminForm.appendLog(NLS.bind(
+                        activityLogger.trace(NLS.bind(
                             "Visit number {0} selected", ce.getVisitNumber()));
                     }
                 }
@@ -257,7 +271,7 @@ public class LinkFormPatientManagement {
         });
     }
 
-    protected CollectionEventWrapper getSelectedCollectionEvent() {
+    public CollectionEventWrapper getSelectedCollectionEvent() {
         return currentCEventSelected;
     }
 
@@ -284,8 +298,8 @@ public class LinkFormPatientManagement {
                                     .getNameShort()));
                     currentPatient = null;
                 } else {
-                    specimenAdminForm.appendLog("--------");
-                    specimenAdminForm.appendLog(NLS.bind(
+                    activityLogger.trace("--------");
+                    activityLogger.trace(NLS.bind(
                         "Found patient with number {0}",
                         currentPatient.getPnumber()));
                 }
@@ -338,16 +352,6 @@ public class LinkFormPatientManagement {
         patientNumberText.setEnabled(enabled);
     }
 
-    protected static interface PatientTextCallback {
-        public void focusLost();
-
-        public void textModified();
-    }
-
-    public void setPatientTextCallback(PatientTextCallback callback) {
-        this.patientTextCallback = callback;
-    }
-
     protected static interface CEventComboCallback {
         public void selectionChanged();
     }
@@ -371,8 +375,8 @@ public class LinkFormPatientManagement {
         }
     }
 
-    public void setFirstControl() {
-        specimenAdminForm.setFirstControl(patientNumberText);
+    public Composite getFirstControl() {
+        return patientNumberText;
     }
 
     public boolean fieldsValid() {
@@ -447,7 +451,7 @@ public class LinkFormPatientManagement {
                     viewerCollectionEvents
                         .setSelection(new StructuredSelection(collection.get(0)));
                     currentCEventSelected = collection.get(0);
-                    cEventComboCallback.selectionChanged();
+                    widgetParent.collectionEventSelectionChanged();
                 } else {
                     viewerCollectionEvents.getCombo().deselectAll();
                 }
@@ -463,7 +467,7 @@ public class LinkFormPatientManagement {
     }
 
     @SuppressWarnings("nls")
-    protected List<Specimen> getParentSpecimenForPEventAndCEvent() {
+    public List<Specimen> getParentSpecimenForPEventAndCEvent() {
         if (currentCEventSelected == null || currentPEventSelected == null)
             return Collections.emptyList();
         List<Specimen> specs;
@@ -539,7 +543,7 @@ public class LinkFormPatientManagement {
     }
 
     public void onClose() {
-        if (specimenAdminForm.finished) {
+        if (widgetParent.isFinished()) {
             pEventListCheckSelection = true;
         } else {
             pEventListCheckSelection = pEventListCheck.getSelection();

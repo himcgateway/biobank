@@ -47,6 +47,7 @@ import edu.ualberta.med.biobank.model.util.RowColPos;
 import edu.ualberta.med.biobank.widgets.CancelConfirmWidget;
 import edu.ualberta.med.biobank.widgets.grids.well.SpecimenCell;
 import edu.ualberta.med.biobank.widgets.grids.well.UICellStatus;
+import edu.ualberta.med.scannerconfig.PalletDimensions;
 import edu.ualberta.med.scannerconfig.dmscanlib.DecodedWell;
 import gov.nih.nci.system.applicationservice.ApplicationException;
 
@@ -79,6 +80,8 @@ public abstract class AbstractPalletSpecimenAdminForm extends AbstractSpecimenAd
     protected ComboViewer profilesCombo;
 
     protected boolean plateMismatchErrorReported = false;
+
+    protected final Set<ContainerType> palletContainerTypes = new HashSet<ContainerType>();
 
     // global state of the pallet process
     protected UICellStatus currentScanState = UICellStatus.NOT_INITIALIZED;
@@ -223,7 +226,6 @@ public abstract class AbstractPalletSpecimenAdminForm extends AbstractSpecimenAd
 
     @SuppressWarnings("nls")
     protected void createScanButton(Composite parent) {
-        // TR: button text
         scanButton = toolkit.createButton(parent, DECODE_PALLET_BUTTON_LABEL, SWT.PUSH);
         GridData gd = new GridData();
         gd.widthHint = 100;
@@ -405,6 +407,10 @@ public abstract class AbstractPalletSpecimenAdminForm extends AbstractSpecimenAd
         palletScanManagement.setFakeContainerType(rows, cols);
     }
 
+    protected void initPalletContainerTypes() throws ApplicationException {
+        palletContainerTypes.addAll(AbstractLinkAssignEntryForm.getPalletContainerTypes());
+    }
+
     /**
      * Returns the information stored on the server for each specimen inventory ID passed in. If the
      * inventory ID is not in the database then nothing is returned.
@@ -435,6 +441,12 @@ public abstract class AbstractPalletSpecimenAdminForm extends AbstractSpecimenAd
                 inventoryIds)).getList();
 
         return SpecimenSetGetInfoAction.toMap(specimenData);
+    }
+
+    public PalletDimensions getCurrentPlateDimensions() {
+        ContainerType containerType = getContainerType();
+        return PalletScanManagement.capacityToPlateDimensions(containerType.getCapacity());
+
     }
 
     /**

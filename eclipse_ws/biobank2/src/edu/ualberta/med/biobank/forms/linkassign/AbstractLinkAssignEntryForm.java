@@ -38,7 +38,6 @@ import edu.ualberta.med.biobank.common.wrappers.ContainerWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenWrapper;
 import edu.ualberta.med.biobank.dialogs.select.SelectParentContainerDialog;
-import edu.ualberta.med.biobank.forms.utils.PalletScanManagement;
 import edu.ualberta.med.biobank.gui.common.BgcPlugin;
 import edu.ualberta.med.biobank.gui.common.widgets.BgcBaseText;
 import edu.ualberta.med.biobank.model.Capacity;
@@ -120,10 +119,7 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
     // handheld scanner
     protected boolean scanMultipleWithHandheldInput = false;
 
-    private final Set<ContainerType> palletContainerTypes;
-
     public AbstractLinkAssignEntryForm() {
-        palletContainerTypes = new HashSet<ContainerType>();
     }
 
     @SuppressWarnings("nls")
@@ -849,10 +845,6 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
         palletWidget.redraw();
     }
 
-    protected void initPalletContainerTypes() throws ApplicationException {
-        palletContainerTypes.addAll(getPalletContainerTypes());
-    }
-
     @SuppressWarnings("nls")
     protected void checkPalletContainerTypes() {
         if (!isSingleMode() && palletContainerTypes.isEmpty()) {
@@ -866,7 +858,7 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
 
     /**
      * Returns the leaf container types, ones that only hold specimens, that match the plate
-     * dimensions define in {@link PalletDimensions}.
+     * dimensions defined in {@link PalletDimensions}.
      * 
      * @note A site may not have any container types defined that match any elements of
      *       PlateDimensions.
@@ -885,11 +877,5 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
         List<ContainerType> ctypesList = SessionManager.getAppService().doAction(
             new SpecimenContainerTypesByCapacityAction(site, capacities)).getList();
         return new HashSet<ContainerType>(ctypesList);
-    }
-
-    public PalletDimensions getCurrentPlateDimensions() {
-        ContainerType containerType = getContainerType();
-        return PalletScanManagement.capacityToPlateDimensions(containerType.getCapacity());
-
     }
 }

@@ -27,7 +27,7 @@
          </property>
          <property
                name="aboutText"
-               value="Biobank Client&#x0A;Version {0}&#x0A;&#x0A;Developed for the Canadian BioSample Repository by AICML .&#x0A;&#x0A;Canadian BioSample Repository: http://www.biosample.ca&#x0A;AICML: http://aicml.cs.ualberta.ca">
+               value="BioBank Client&#x0A;Version {0}&#x0A;&#x0A;Developed for the Canadian BioSample Repository by AICML .&#x0A;&#x0A;Canadian BioSample Repository: http://www.biosample.ca&#x0A;AICML: http://aicml.cs.ualberta.ca">
          </property>
          <property
                name="aboutImage"
@@ -260,6 +260,11 @@
              categoryId="org.eclipse.ui.category.window"
              id="edu.ualberta.med.biobank.commands.processing.link"
              name="%SpecimenLink.command">
+       </command>
+       <command
+             categoryId="org.eclipse.ui.category.window"
+             id="edu.ualberta.med.biobank.commands.processing.specimenLinkAndAssign"
+             name="%SpecimenLinkAndAssign.command">
        </command>
        <command
              categoryId="org.eclipse.ui.category.window"
@@ -728,6 +733,25 @@
                </reference>
                <reference
                      definitionId="edu.ualberta.med.biobank.gui.common.specimenAssignPermission">
+               </reference>
+            </and>
+         </activeWhen>
+         <enabledWhen>
+            <reference
+                  definitionId="biobank.processingPerspectiveSelected">
+            </reference>
+         </enabledWhen>
+      </handler>
+      <handler
+            class="edu.ualberta.med.biobank.handlers.SpecimenLinkAndAssignHandler"
+            commandId="edu.ualberta.med.biobank.commands.processing.specimenLinkAndAssign">
+         <activeWhen>
+            <and>
+               <reference
+                     definitionId="biobank.processingPerspectiveSelected">
+               </reference>
+               <reference
+                     definitionId="edu.ualberta.med.biobank.gui.common.specimenLinkPermission">
                </reference>
             </and>
          </activeWhen>
@@ -1209,6 +1233,12 @@
                         definitionId="biobank.processingPerspectiveSelected">
                   </reference>
                </visibleWhen>
+            </command>
+            <command
+                  commandId="edu.ualberta.med.biobank.commands.processing.specimenLinkAndAssign"
+                  icon="icons/scanLink.png"
+                  style="push"
+                  tooltip="Specimen Link and Assign (demo)">
             </command>
             <command
                   commandId="edu.ualberta.med.biobank.commands.processing.link"
@@ -1810,6 +1840,12 @@
       default="false"
       id="edu.ualberta.med.biobank.forms.SpecimenLinkEntryForm"
       name="%SpecimenLink.editor">
+</editor>
+<editor
+      class="edu.ualberta.med.biobank.forms.linkassign.SpecimenLinkAndAssignForm"
+      default="false"
+      id="edu.ualberta.med.biobank.forms.SpecimenLinkEntryAndAssignForm"
+      name="%SpecimenLinkAndAssign.editor">
 </editor>
 <editor
       class="edu.ualberta.med.biobank.forms.batchop.PatientImportForm"
