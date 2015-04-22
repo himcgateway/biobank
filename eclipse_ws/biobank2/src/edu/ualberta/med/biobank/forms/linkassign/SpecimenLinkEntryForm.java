@@ -542,12 +542,11 @@ public class SpecimenLinkEntryForm extends AbstractLinkAssignEntryForm implement
 
         StringBuffer sb = new StringBuffer("ALIQUOTED SPECIMENS:\n");
         for (AliquotedSpecimenResInfo resInfo : resList) {
-            sb.append(MessageFormat
-                .format(
-                    "LINKED: ''{0}'' with type ''{1}'' to source: {2} ({3}) - Patient: {4} - Visit: {5} - Center: {6}\n",
-                    resInfo.inventoryId, resInfo.typeName, resInfo.parentTypeName,
-                    resInfo.parentInventoryId, resInfo.patientPNumber, resInfo.visitNumber,
-                    resInfo.currentCenterName));
+            sb.append(MessageFormat.format(
+                "LINKED: ''{0}'' with type ''{1}'' to source: {2} ({3}) - Patient: {4} - Visit: {5} - Center: {6}\n",
+                resInfo.inventoryId, resInfo.typeName, resInfo.parentTypeName,
+                resInfo.parentInventoryId, resInfo.patientPNumber, resInfo.visitNumber,
+                resInfo.currentCenterName));
         }
         // Want only one common 'log entry' so use a stringbuffer to print
         // everything together

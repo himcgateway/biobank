@@ -1,8 +1,10 @@
 package edu.ualberta.med.biobank.forms.linkassign;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -36,6 +38,9 @@ import edu.ualberta.med.biobank.common.action.Action;
 import edu.ualberta.med.biobank.common.action.scanprocess.CellInfo;
 import edu.ualberta.med.biobank.common.action.scanprocess.SpecimenLinkProcessAction;
 import edu.ualberta.med.biobank.common.action.scanprocess.result.ProcessResult;
+import edu.ualberta.med.biobank.common.action.specimen.SpecimenLinkSaveAction;
+import edu.ualberta.med.biobank.common.action.specimen.SpecimenLinkSaveAction.AliquotedSpecimenInfo;
+import edu.ualberta.med.biobank.common.action.specimen.SpecimenLinkSaveAction.AliquotedSpecimenResInfo;
 import edu.ualberta.med.biobank.common.wrappers.CollectionEventWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenWrapper;
@@ -45,6 +50,7 @@ import edu.ualberta.med.biobank.forms.utils.PalletScanManagement;
 import edu.ualberta.med.biobank.gui.common.BgcLogger;
 import edu.ualberta.med.biobank.gui.common.BgcPlugin;
 import edu.ualberta.med.biobank.gui.common.widgets.utils.ComboSelectionUpdate;
+import edu.ualberta.med.biobank.model.ActivityStatus;
 import edu.ualberta.med.biobank.model.Capacity;
 import edu.ualberta.med.biobank.model.util.RowColPos;
 import edu.ualberta.med.biobank.mvp.view.DialogView.Dialog;
@@ -675,6 +681,36 @@ public class SpecimenLinkAndAssignForm
     @Override
     protected void saveForm() throws Exception {
         log.debug("saveForm");
+        saveLinkedSpecimens();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void saveLinkedSpecimens() throws Exception {
+        Map<RowColPos, SpecimenCell> cells = (Map<RowColPos, SpecimenCell>) palletWidget.getCells();
+        List<AliquotedSpecimenInfo> asiList = new ArrayList<AliquotedSpecimenInfo>();
+        for (SpecimenCell cell : cells.values()) {
+            if (SpecimenCell.hasValue(cell) && cell.getStatus() == UICellStatus.TYPE) {
+                SpecimenWrapper sourceSpecimen = cell.getSourceSpecimen();
+                SpecimenWrapper aliquotedSpecimen = cell.getSpecimen();
+                AliquotedSpecimenInfo asi = new AliquotedSpecimenInfo();
+                asi.activityStatus = ActivityStatus.ACTIVE;
+                asi.typeId = aliquotedSpecimen.getSpecimenType().getId();
+                asi.inventoryId = cell.getValue();
+                asi.parentSpecimenId = sourceSpecimen.getId();
+                asiList.add(asi);
+            }
+        }
+        List<AliquotedSpecimenResInfo> resList =
+            SessionManager.getAppService().doAction(
+                new SpecimenLinkSaveAction(
+                    SessionManager.getUser().getCurrentWorkingCenter().getId(), null, asiList)
+                ).getList();
+        printSaveMultipleLogMessage(resList);
+    }
+
+    private void printSaveMultipleLogMessage(List<AliquotedSpecimenResInfo> resList) {
+        // TODO Auto-generated method stub
+
     }
 
 }
