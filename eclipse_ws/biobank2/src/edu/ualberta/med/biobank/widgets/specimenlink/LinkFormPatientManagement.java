@@ -33,9 +33,11 @@ import org.xnap.commons.i18n.I18nFactory;
 
 import edu.ualberta.med.biobank.SessionManager;
 import edu.ualberta.med.biobank.common.action.collectionEvent.CollectionEventGetSourceSpecimensAction;
+import edu.ualberta.med.biobank.common.action.scanprocess.GetProcessingEventsAction;
 import edu.ualberta.med.biobank.common.action.study.StudyGetAliquotedSpecimensAction;
 import edu.ualberta.med.biobank.common.util.StringUtil;
 import edu.ualberta.med.biobank.common.wrappers.CollectionEventWrapper;
+import edu.ualberta.med.biobank.common.wrappers.ModelWrapper;
 import edu.ualberta.med.biobank.common.wrappers.PatientWrapper;
 import edu.ualberta.med.biobank.common.wrappers.ProcessingEventWrapper;
 import edu.ualberta.med.biobank.common.wrappers.StudyWrapper;
@@ -50,17 +52,18 @@ import edu.ualberta.med.biobank.model.Patient;
 import edu.ualberta.med.biobank.model.ProcessingEvent;
 import edu.ualberta.med.biobank.model.Specimen;
 import edu.ualberta.med.biobank.model.SpecimenType;
+import edu.ualberta.med.biobank.server.applicationservice.BiobankApplicationService;
 import edu.ualberta.med.biobank.widgets.BiobankLabelProvider;
 import gov.nih.nci.system.applicationservice.ApplicationException;
 
 /**
  * A widget that displays a text field to enter a patient number, and pull down combo boxes to
  * select a processing event and a collection event visit number.
- *
+ * 
  * Once the user enters the patient number, the server is queried for possible processing events and
  * collection events. Once the server responds, the combo boxes are populated with the possible
  * choices.
- *
+ * 
  */
 public class LinkFormPatientManagement {
 
@@ -282,20 +285,17 @@ public class LinkFormPatientManagement {
             currentPatient = PatientWrapper.getPatient(
                 SessionManager.getAppService(), patientNumberText.getText());
             if (currentPatient != null) {
-                if (!SessionManager.getUser().getCurrentWorkingCenter()
-                    .getStudyCollection().contains(currentPatient.getStudy())) {
-                    BgcPlugin
-                        .openError(
-                            // TR: dialog title
-                            i18n.tr("Patient search error"),
-                            // TR: dialog message
-                            i18n.tr(
-                                "Patient {0} has been found but it is linked to the study {1}. The center {2} is not working with this study.",
-                                currentPatient.getPnumber(),
-                                currentPatient.getStudy().getNameShort(),
-                                SessionManager.getUser()
-                                    .getCurrentWorkingCenter()
-                                    .getNameShort()));
+                if (!SessionManager.getUser().getCurrentWorkingCenter().getStudyCollection().contains(
+                    currentPatient.getStudy())) {
+                    BgcPlugin.openError(
+                        // TR: dialog title
+                        i18n.tr("Patient search error"),
+                        // TR: dialog message
+                        i18n.tr(
+                            "Patient {0} has been found but it is linked to the study {1}. The center {2} is not working with this study.",
+                            currentPatient.getPnumber(),
+                            currentPatient.getStudy().getNameShort(),
+                            SessionManager.getUser().getCurrentWorkingCenter().getNameShort()));
                     currentPatient = null;
                 } else {
                     activityLogger.trace("--------");
@@ -397,19 +397,21 @@ public class LinkFormPatientManagement {
         if (viewerProcessingEvents != null) {
             if (currentPatient != null) {
                 List<ProcessingEventWrapper> collection = null;
-                if (pEventListCheck.getSelection()) {
-                    try {
-                        collection = currentPatient.getLast7DaysProcessingEvents(
-                            SessionManager.getUser().getCurrentWorkingCenter());
-                    } catch (ApplicationException e) {
-                        BgcPlugin.openAsyncError(
-                            // TR: dialog title
-                            i18n.tr("Problem retrieving processing events"),
-                            e);
-                    }
-                } else {
-                    collection = currentPatient.getProcessingEventCollection(
-                        SessionManager.getUser().getCurrentWorkingCenter(), false);
+                try {
+                    BiobankApplicationService appService = SessionManager.getAppService();
+                    List<ProcessingEvent> pevents = appService.doAction(
+                        new GetProcessingEventsAction(
+                            currentPatient.getPnumber(),
+                            SessionManager.getUser().getCurrentWorkingCenter().getId(),
+                            pEventListCheck.getSelection())).getList();
+
+                    collection = ModelWrapper.wrapModelCollection(
+                        appService, pevents, ProcessingEventWrapper.class);
+                } catch (ApplicationException e) {
+                    BgcPlugin.openAsyncError(
+                        // TR: dialog title
+                        i18n.tr("Problem retrieving processing events"),
+                        e);
                 }
                 viewerProcessingEvents.setInput(collection);
                 viewerProcessingEvents.getCombo().setFocus();
