@@ -6,9 +6,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
-
-import org.apache.log4j.Logger;
 
 import edu.ualberta.med.biobank.SessionManager;
 import edu.ualberta.med.biobank.common.action.specimen.SpecimenLinkSaveAction.AliquotedSpecimenResInfo;
@@ -56,9 +55,18 @@ public class ScanLinkHelper {
         return result;
     }
 
+    /**
+     * Want only one common 'log entry' so use a stringbuffer to print every thing together.
+     * 
+     * @param linkedSpecimens
+     * 
+     * @return A formatted string that can be logged stating what specimens were linked.
+     */
     @SuppressWarnings("nls")
-    public static void printSaveMultipleLogMessage(
-        List<AliquotedSpecimenResInfo> linkedSpecimens, Logger activityLogger) {
+    public static List<String> linkedSpecimensLogMessage(
+        List<AliquotedSpecimenResInfo> linkedSpecimens) {
+        List<String> result = new ArrayList<String>();
+
         StringBuffer sb = new StringBuffer("ALIQUOTED SPECIMENS:\n");
         for (AliquotedSpecimenResInfo resInfo : linkedSpecimens) {
             sb.append(MessageFormat.format(
@@ -67,26 +75,30 @@ public class ScanLinkHelper {
                 resInfo.parentInventoryId, resInfo.patientPNumber, resInfo.visitNumber,
                 resInfo.currentCenterName));
         }
-        // Want only one common 'log entry' so use a stringbuffer to print
-        // everything together
-        activityLogger.trace(sb.toString());
+        result.add(sb.toString());
 
-        Map<String, Set<AliquotedSpecimenResInfo>> counts =
-            new HashMap<String, Set<AliquotedSpecimenResInfo>>();
+        Map<String, Integer> counts = new HashMap<String, Integer>();
 
         for (AliquotedSpecimenResInfo spc : linkedSpecimens) {
-            Set<AliquotedSpecimenResInfo> set = counts.get(spc.patientPNumber);
-            if (set == null) {
-                set = new HashSet<AliquotedSpecimenResInfo>();
-                counts.put(spc.patientPNumber, set);
+            Integer count = counts.get(spc.patientPNumber);
+            if (count == null) {
+                counts.put(spc.patientPNumber, 0);
+            } else {
+                counts.put(spc.patientPNumber, count + 1);
             }
-            set.add(spc);
         }
 
-        // LINKING\: {0} specimens linked to patient {1} on center {2}
-        appendLog(MessageFormat.format(
-            "LINKING: {0} specimens linked to patient {1} on center {2}", linkedSpecimens.size(),
-            linkFormPatientManagement.getCurrentPatient().getPnumber(), SessionManager.getUser()
-                .getCurrentWorkingCenter().getNameShort()));
+        for (Entry<String, Integer> entry : counts.entrySet()) {
+            String pnumber = entry.getKey();
+            Integer count = entry.getValue();
+
+            // LINKING\: {0} specimens linked to patient {1} on center {2}
+            result.add(MessageFormat.format(
+                "LINKING: {0} specimens linked to patient {1} on center {2}",
+                count,
+                pnumber,
+                SessionManager.getUser().getCurrentWorkingCenter().getNameShort()));
+        }
+        return result;
     }
 }

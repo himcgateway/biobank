@@ -50,6 +50,7 @@ import edu.ualberta.med.biobank.forms.utils.PalletScanManagement;
 import edu.ualberta.med.biobank.gui.common.BgcLogger;
 import edu.ualberta.med.biobank.gui.common.BgcPlugin;
 import edu.ualberta.med.biobank.gui.common.widgets.utils.ComboSelectionUpdate;
+import edu.ualberta.med.biobank.helpers.ScanLinkHelper;
 import edu.ualberta.med.biobank.model.ActivityStatus;
 import edu.ualberta.med.biobank.model.Capacity;
 import edu.ualberta.med.biobank.model.util.RowColPos;
@@ -700,17 +701,12 @@ public class SpecimenLinkAndAssignForm
                 asiList.add(asi);
             }
         }
-        List<AliquotedSpecimenResInfo> resList =
+        List<AliquotedSpecimenResInfo> linkedSpecimens =
             SessionManager.getAppService().doAction(
                 new SpecimenLinkSaveAction(
                     SessionManager.getUser().getCurrentWorkingCenter().getId(), null, asiList)
                 ).getList();
-        printSaveMultipleLogMessage(resList);
-    }
-
-    private void printSaveMultipleLogMessage(List<AliquotedSpecimenResInfo> resList) {
-        // TODO Auto-generated method stub
-
+        appendLogs(ScanLinkHelper.linkedSpecimensLogMessage(linkedSpecimens));
     }
 
 }

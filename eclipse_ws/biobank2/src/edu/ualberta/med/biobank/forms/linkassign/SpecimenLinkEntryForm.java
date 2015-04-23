@@ -533,30 +533,7 @@ public class SpecimenLinkEntryForm extends AbstractLinkAssignEntryForm implement
                     linkFormPatientManagement.getCurrentPatient().getStudy().getId(),
                     asiList)
                 ).getList();
-        printSaveMultipleLogMessage(resList);
-    }
-
-    @SuppressWarnings("nls")
-    protected void printSaveMultipleLogMessage(List<AliquotedSpecimenResInfo> resList) {
-        log.debug("printSaveMultipleLogMessage");
-
-        StringBuffer sb = new StringBuffer("ALIQUOTED SPECIMENS:\n");
-        for (AliquotedSpecimenResInfo resInfo : resList) {
-            sb.append(MessageFormat.format(
-                "LINKED: ''{0}'' with type ''{1}'' to source: {2} ({3}) - Patient: {4} - Visit: {5} - Center: {6}\n",
-                resInfo.inventoryId, resInfo.typeName, resInfo.parentTypeName,
-                resInfo.parentInventoryId, resInfo.patientPNumber, resInfo.visitNumber,
-                resInfo.currentCenterName));
-        }
-        // Want only one common 'log entry' so use a stringbuffer to print
-        // everything together
-        appendLog(sb.toString());
-
-        // LINKING\: {0} specimens linked to patient {1} on center {2}
-        appendLog(MessageFormat.format(
-            "LINKING: {0} specimens linked to patient {1} on center {2}", resList.size(),
-            linkFormPatientManagement.getCurrentPatient().getPnumber(), SessionManager.getUser()
-                .getCurrentWorkingCenter().getNameShort()));
+        appendLogs(ScanLinkHelper.linkedSpecimensLogMessage(resList));
     }
 
     @SuppressWarnings("nls")
