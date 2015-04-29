@@ -66,6 +66,7 @@ import edu.ualberta.med.biobank.gui.common.validators.NonEmptyStringValidator;
 import edu.ualberta.med.biobank.gui.common.widgets.BgcBaseText;
 import edu.ualberta.med.biobank.gui.common.widgets.BgcBaseWidget;
 import edu.ualberta.med.biobank.gui.common.widgets.utils.ComboSelectionUpdate;
+import edu.ualberta.med.biobank.helpers.ScanLinkHelper;
 import edu.ualberta.med.biobank.model.AbstractPosition;
 import edu.ualberta.med.biobank.model.ActivityStatus;
 import edu.ualberta.med.biobank.model.Capacity;
@@ -78,7 +79,6 @@ import edu.ualberta.med.biobank.validators.StringLengthValidator;
 import edu.ualberta.med.biobank.widgets.BiobankLabelProvider;
 import edu.ualberta.med.biobank.widgets.grids.well.SpecimenCell;
 import edu.ualberta.med.biobank.widgets.grids.well.UICellStatus;
-import edu.ualberta.med.scannerconfig.PalletDimensions;
 import gov.nih.nci.system.applicationservice.ApplicationException;
 
 /**
@@ -879,24 +879,10 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
         List<ContainerTypeWrapper> palletTypes = new ArrayList<ContainerTypeWrapper>();
         for (ContainerTypeWrapper type : childContainerTypeCollection) {
             if (!type.getSpecimenTypeCollection().isEmpty()
-                && (!useScanner || isPalletScannable(type)))
+                && (!useScanner || ScanLinkHelper.isPalletScannable(type)))
                 palletTypes.add(type);
         }
         return palletTypes;
-    }
-
-    private boolean isPalletScannable(ContainerTypeWrapper ctype) {
-        for (PalletDimensions gridDimensions : PalletDimensions.values()) {
-            int rows = gridDimensions.getRows();
-            int cols = gridDimensions.getCols();
-            if (ctype.isPalletRowsCols(rows, cols))
-                return true;
-        }
-        return false;
-    }
-
-    private boolean isPalletScannable(ContainerWrapper container) {
-        return isPalletScannable(container.getContainerType());
     }
 
     @SuppressWarnings("nls")
@@ -922,7 +908,10 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
                 SessionManager.getAppService(), containers.get(0));
             isNewMultipleContainer = false;
 
-            if (!isContainerValid(palletFoundWithProductBarcode)) return false;
+            if (!ScanLinkHelper.isContainerValid(
+                palletFoundWithProductBarcode, palletPositionText.getText())) {
+                return false;
+            }
 
             currentMultipleContainer.initObjectWith(palletFoundWithProductBarcode);
             currentMultipleContainer.reset();
@@ -950,34 +939,6 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
                 // TR: dialog title
                 i18n.tr("Values validation"), ex);
             appendLog(NLS.bind("ERROR: {0}", ex.getMessage()));
-            return false;
-        }
-        return true;
-    }
-
-    @SuppressWarnings("nls")
-    private boolean isContainerValid(ContainerWrapper palletContainer) {
-        // a container with this barcode exists
-        if (!isPalletScannable(palletContainer)) {
-            BgcPlugin.openAsyncError(
-                // TR: dialog title
-                i18n.tr("Values validation"),
-                // TR: dialog message
-                i18n.tr("A container with this barcode exists but is not a 8*12 or 10*10 container."));
-            return false;
-        }
-
-        if (!palletPositionText.getText().isEmpty()
-            && !palletPositionText.getText().equals(palletContainer.getLabel())) {
-            // a label was entered but is different from the one set to the pallet
-            // retrieved
-            BgcPlugin.openAsyncError(
-                // TR: dialog title
-                i18n.tr("Values validation"),
-                // TR: dialog message
-                i18n.tr("A pallet with barcode {0} is already used in position {1}.",
-                    palletContainer.getProductBarcode(),
-                    palletContainer.getFullInfoLabel()));
             return false;
         }
         return true;
