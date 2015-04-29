@@ -138,7 +138,7 @@ public class ScanLinkDialog extends PersistedDialog
         getShell().setMinimumSize(size);
     }
 
-    protected void createControls(Composite parent) {
+    private void createControls(Composite parent) {
         final Composite contents = new Composite(parent, SWT.NONE);
 
         GridLayout layout = new GridLayout(3, false);
@@ -148,6 +148,15 @@ public class ScanLinkDialog extends PersistedDialog
         GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
         contents.setLayoutData(gd);
 
+        createControlWidgets(contents);
+    }
+
+    /**
+     * Classes extending this dialog can override this module to create it's additional widgets.
+     * 
+     * @param contents The composite parent to bind widgets to.
+     */
+    protected void createControlWidgets(Composite contents) {
         linkFormPatientManagement.createPatientNumberText(contents);
         linkFormPatientManagement.createEventsWidgets(contents);
         createSpecimenTypeSelection(contents);
