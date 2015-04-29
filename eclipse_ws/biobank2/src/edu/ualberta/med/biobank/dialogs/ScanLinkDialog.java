@@ -47,12 +47,12 @@ import gov.nih.nci.system.applicationservice.ApplicationException;
 
 /**
  * This dialog is used when the user is going to scan link specimens.
- *
+ * 
  * At the moment is is invoked by {@link SpecimenLinkAndAssignForm} when the user presses the
  * "Scan link" button.
- *
+ * 
  * @author nelson
- *
+ * 
  */
 public class ScanLinkDialog extends PersistedDialog
     implements ILinkFormPatientManagementParent, ISpecimenTypeSelectionChangedListener {
@@ -62,14 +62,14 @@ public class ScanLinkDialog extends PersistedDialog
     private static Logger log = LoggerFactory.getLogger(ScanLinkDialog.class);
 
     @SuppressWarnings("nls")
-    private static final String SCANNING_DIALOG_SETTINGS =
+    private static final String SCAN_LINK_DIALOG_SETTINGS =
         ScanLinkDialog.class.getSimpleName() + "_SETTINGS";
 
     @SuppressWarnings("nls")
     private static final String TITLE = i18n.tr("Scan link");
 
     @SuppressWarnings("nls")
-    private static final String TITLE_AREA_MESSAGE_SELECT_PLATE =
+    private static final String TITLE_AREA_MESSAGE_SELECT_PATIENT =
         i18n.tr("Select a patient number");
 
     private final LinkFormPatientManagement linkFormPatientManagement;
@@ -96,16 +96,16 @@ public class ScanLinkDialog extends PersistedDialog
     @Override
     protected IDialogSettings getDialogSettings() {
         IDialogSettings settings = super.getDialogSettings();
-        IDialogSettings section = settings.getSection(SCANNING_DIALOG_SETTINGS);
+        IDialogSettings section = settings.getSection(SCAN_LINK_DIALOG_SETTINGS);
         if (section == null) {
-            section = settings.addNewSection(SCANNING_DIALOG_SETTINGS);
+            section = settings.addNewSection(SCAN_LINK_DIALOG_SETTINGS);
         }
         return section;
     }
 
     @Override
     protected String getTitleAreaMessage() {
-        return TITLE_AREA_MESSAGE_SELECT_PLATE;
+        return TITLE_AREA_MESSAGE_SELECT_PATIENT;
     }
 
     @Override
@@ -138,7 +138,7 @@ public class ScanLinkDialog extends PersistedDialog
         getShell().setMinimumSize(size);
     }
 
-    private void createControls(Composite parent) {
+    protected void createControls(Composite parent) {
         final Composite contents = new Composite(parent, SWT.NONE);
 
         GridLayout layout = new GridLayout(3, false);

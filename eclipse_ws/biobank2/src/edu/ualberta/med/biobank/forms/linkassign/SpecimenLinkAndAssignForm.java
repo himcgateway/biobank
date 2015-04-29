@@ -44,6 +44,7 @@ import edu.ualberta.med.biobank.common.action.specimen.SpecimenLinkSaveAction.Al
 import edu.ualberta.med.biobank.common.wrappers.CollectionEventWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.SpecimenWrapper;
+import edu.ualberta.med.biobank.dialogs.ScanAssignDialog;
 import edu.ualberta.med.biobank.dialogs.ScanLinkDialog;
 import edu.ualberta.med.biobank.dialogs.scanmanually.ScanTubeManuallyFactory;
 import edu.ualberta.med.biobank.forms.utils.PalletScanManagement;
@@ -493,6 +494,36 @@ public class SpecimenLinkAndAssignForm
     }
 
     /**
+     * Called when the user has selected some cells and wants to link them to patients, collection
+     * event, source specimen, specimen type, and a position in a container.
+     * 
+     * This is the same as {@link scanLinkSelection} but also allows to assign a container position.
+     * 
+     * Note that the server will not be updated until the user presses the "Confirm" button.
+     */
+    @SuppressWarnings("nls")
+    private void scanAssignSelection() {
+        if (!selectedCellsHaveNoType()) {
+            // some cells have already been linked, display error message
+            BgcPlugin.openError(
+                // TR: error dialog title
+                i18n.tr("Selection problem"),
+                // TR: error dialog message
+                i18n.tr("You have selected cells that you've already linked. "
+                    + "They cannot be scan linked again.\n"
+                    + "\nPlease make another selection or press the Cancel button to reset the form."));
+            return;
+        }
+
+        ScanAssignDialog dialog =
+            new ScanAssignDialog(Display.getDefault().getActiveShell(), activityLogger);
+
+        if (dialog.open() == Dialog.OK) {
+
+        }
+    }
+
+    /**
      * Displays the tooltip text when user hovers over a cell in the pallet grid.
      */
     @SuppressWarnings("nls")
@@ -521,18 +552,6 @@ public class SpecimenLinkAndAssignForm
             buf.append("\n").append(i18n.tr("Patient: ")).append(collectionEvent.getPatient().getPnumber());
         }
         return buf.toString();
-    }
-
-    /**
-     * Called when the user has selected some cells and wants to link them to patients, collection
-     * event, source specimen, specimen type, and a position in a container.
-     * 
-     * This is the same as {@link scanLinkSelection} but also allows to assign a container position.
-     * 
-     * Note that the server will not be updated until the user presses the "Confirm" button.
-     */
-    private void scanAssignSelection() {
-        // TODO Auto-generated method stub
     }
 
     /**
@@ -601,12 +620,9 @@ public class SpecimenLinkAndAssignForm
 
     }
 
-    /*
+    /**
      * Fields are always valid for this form.
      * 
-     * (non-Javadoc)
-     * 
-     * @see edu.ualberta.med.biobank.forms.linkassign.AbstractPalletSpecimenAdminForm#fieldsValid()
      */
     @Override
     protected boolean fieldsValid() {
@@ -683,6 +699,8 @@ public class SpecimenLinkAndAssignForm
     protected void saveForm() throws Exception {
         log.debug("saveForm");
         saveLinkedSpecimens();
+        setFinished(false);
+        SessionManager.log("save", null, "SpecimenLinkAndAssign");
     }
 
     @SuppressWarnings("unchecked")

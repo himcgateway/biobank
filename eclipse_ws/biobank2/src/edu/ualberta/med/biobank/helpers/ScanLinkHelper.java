@@ -82,7 +82,7 @@ public class ScanLinkHelper {
         for (AliquotedSpecimenResInfo spc : linkedSpecimens) {
             Integer count = counts.get(spc.patientPNumber);
             if (count == null) {
-                counts.put(spc.patientPNumber, 0);
+                counts.put(spc.patientPNumber, 1);
             } else {
                 counts.put(spc.patientPNumber, count + 1);
             }
