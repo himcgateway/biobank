@@ -34,7 +34,7 @@ import edu.ualberta.med.biobank.gui.common.BgcPlugin;
 import edu.ualberta.med.biobank.gui.common.validators.NonEmptyStringValidator;
 import edu.ualberta.med.biobank.gui.common.widgets.BgcBaseText;
 import edu.ualberta.med.biobank.gui.common.widgets.utils.ComboSelectionUpdate;
-import edu.ualberta.med.biobank.helpers.ScanLinkHelper;
+import edu.ualberta.med.biobank.helpers.ScanAssignHelper;
 import edu.ualberta.med.biobank.model.Container;
 import edu.ualberta.med.biobank.widgets.BiobankLabelProvider;
 
@@ -77,6 +77,8 @@ public class ScanAssignDialog extends ScanLinkDialog
     private ContainerWrapper palletContainer;
 
     private boolean palletLabelTextModified;
+
+    private boolean palletPositionTextModified;
 
     public ScanAssignDialog(Shell parentShell, org.apache.log4j.Logger activityLogger) {
         super(parentShell, activityLogger);
@@ -258,7 +260,7 @@ public class ScanAssignDialog extends ScanLinkDialog
                 SessionManager.getAppService(), containers.get(0));
             isNewMultipleContainer = false;
 
-            if (!ScanLinkHelper.isContainerValid(
+            if (!ScanAssignHelper.isContainerValid(
                 palletContainer, palletLabelText.getText())) {
                 return false;
             }
@@ -296,17 +298,17 @@ public class ScanAssignDialog extends ScanLinkDialog
             BusyIndicator.showWhile(Display.getDefault(), new Runnable() {
                 @Override
                 public void run() {
-                    boolean ok = (initWithProduct || checkMultipleContainerPosition());
-                    setCanLaunchScan(ok);
-                    initCellsWithContainer(currentMultipleContainer);
-                    currentMultipleContainer.setLabel(palletPositionText.getText());
-                    if (!ok) {
-                        focusControl(palletPositionText);
-                        showOnlyPallet(true);
-                    } else if (palletTypesViewer.getCombo().getEnabled()) {
-                        focusControl(palletTypesViewer.getCombo());
-                    }
-                    palletPositionTextModified = false;
+                    // boolean ok = (initWithProduct || checkMultipleContainerPosition());
+                    // setCanLaunchScan(ok);
+                    // initCellsWithContainer(currentMultipleContainer);
+                    // currentMultipleContainer.setLabel(palletPositionText.getText());
+                    // if (!ok) {
+                    // focusControl(palletPositionText);
+                    // showOnlyPallet(true);
+                    // } else if (palletTypesViewer.getCombo().getEnabled()) {
+                    // focusControl(palletTypesViewer.getCombo());
+                    // }
+                    // palletPositionTextModified = false;
                 }
             });
         }
