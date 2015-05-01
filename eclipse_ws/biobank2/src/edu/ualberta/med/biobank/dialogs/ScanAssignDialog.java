@@ -230,16 +230,21 @@ public class ScanAssignDialog extends ScanLinkDialog
         if (palletBarcodeTextModified
             && palletBarcodeValidator.validate(
                 palletBarcode.getValue()).equals(Status.OK_STATUS)) {
-            boolean ok = checkMultipleScanBarcode();
-            // if (!ok) {
-            // focusControl(palletproductBarcodeText);
-            // }
+            boolean ok = checkPalletBarcode();
+            if (!ok) {
+                Display.getDefault().asyncExec(new Runnable() {
+                    @Override
+                    public void run() {
+                        palletBarcodeText.setFocus();
+                    }
+                });
+            }
         }
         palletBarcodeTextModified = false;
     }
 
     @SuppressWarnings("nls")
-    protected boolean checkMultipleScanBarcode() {
+    protected boolean checkPalletBarcode() {
         try {
             Container qryContainer = new Container();
             qryContainer.setProductBarcode((String) palletBarcode.getValue());
@@ -256,8 +261,7 @@ public class ScanAssignDialog extends ScanLinkDialog
                 return true;
             }
 
-            palletContainer = new ContainerWrapper(
-                SessionManager.getAppService(), containers.get(0));
+            palletContainer = new ContainerWrapper(SessionManager.getAppService(), containers.get(0));
             isNewMultipleContainer = false;
 
             if (!ScanAssignHelper.isContainerValid(
@@ -296,9 +300,21 @@ public class ScanAssignDialog extends ScanLinkDialog
         if (palletLabelText.isEnabled() && palletLabelTextModified
             && palletLabelValidator.validate(palletLabelText.getText()).equals(Status.OK_STATUS)) {
             BusyIndicator.showWhile(Display.getDefault(), new Runnable() {
+                @SuppressWarnings("nls")
                 @Override
                 public void run() {
-                    // boolean ok = (initWithProduct || checkMultipleContainerPosition());
+                    checkingPalletPosition = true;
+                    String label = (String) palletLabel.getValue();
+                    palletContainer = ScanAssignHelper.getOrCreateContainerByLabel(label, palletContainer);
+
+                    if (palletContainer == null) {
+                        activityLogger.trace(NLS.bind(
+                            "ERROR: could not get container with label {0}", palletLabel));
+                        return;
+                    }
+
+                    boolean ok = checkAndUpdatePallet(palletContainer, label);
+
                     // setCanLaunchScan(ok);
                     // initCellsWithContainer(currentMultipleContainer);
                     // currentMultipleContainer.setLabel(palletPositionText.getText());
@@ -313,5 +329,10 @@ public class ScanAssignDialog extends ScanLinkDialog
             });
         }
         palletPositionTextModified = false;
+    }
+
+    private boolean checkAndUpdatePallet(ContainerWrapper pallet, String label) {
+        // TODO Auto-generated method stub
+        return false;
     }
 }

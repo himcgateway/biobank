@@ -1,5 +1,6 @@
 package edu.ualberta.med.biobank.helpers;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -158,6 +159,40 @@ public class ScanAssignHelper {
                 i18n.tr("Init container from position"), ex);
         }
         return null;
+    }
+
+    public static List<ContainerTypeWrapper> getContainerTypes(
+        ContainerWrapper container, boolean usingFlatbedScanner) {
+        // try {
+        List<ContainerTypeWrapper> possibleTypes = new ArrayList<ContainerTypeWrapper>(0);
+        ContainerWrapper parentContainer = container.getParentContainer();
+
+        if (parentContainer != null) {
+            possibleTypes.addAll(getPossibleTypes(
+                parentContainer.getContainerType().getChildContainerTypeCollection(),
+                usingFlatbedScanner));
+        } else {
+            possibleTypes.add(container.getContainerType());
+        }
+
+        return possibleTypes;
+        // }
+    }
+
+    /**
+     * is use scanner, want only 8*12 or 10*10 pallets. Also check the container type can hold
+     * specimens
+     */
+    public static List<ContainerTypeWrapper> getPossibleTypes(
+        List<ContainerTypeWrapper> childContainerTypeCollection,
+        boolean usingFlatbedScanner) {
+        List<ContainerTypeWrapper> palletTypes = new ArrayList<ContainerTypeWrapper>();
+        for (ContainerTypeWrapper type : childContainerTypeCollection) {
+            if (!type.getSpecimenTypeCollection().isEmpty()
+                && (!usingFlatbedScanner || ScanAssignHelper.isPalletScannable(type)))
+                palletTypes.add(type);
+        }
+        return palletTypes;
     }
 
     private static boolean isPalletScannable(ContainerWrapper container) {

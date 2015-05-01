@@ -135,7 +135,7 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
         Boolean.class);
 
     // for multiple specimens assign
-    private final ContainerWrapper currentMultipleContainer;
+    private ContainerWrapper currentMultipleContainer;
     protected boolean palletproductBarcodeTextModified;
     private NonEmptyStringValidator productBarcodeValidator;
     protected boolean isModifyingMultipleFields;
@@ -151,8 +151,6 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
     private Label palletproductBarcodeLabel;
     private boolean isNewMultipleContainer;
     private boolean checkingMultipleContainerPosition;
-
-    private boolean initWithProduct = false;
 
     protected SpecimenAssignResInfo res;
 
@@ -657,9 +655,12 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
 
                             if (container == null) {
                                 appendLog(NLS.bind("ERROR: could not get container with label {0}", palletLabel));
+                                return;
                             }
 
-                            boolean ok = (initWithProduct || checkAndUpdateContainer(container, palletLabel));
+                            currentMultipleContainer = container;
+
+                            boolean ok = checkAndUpdateContainer(container, palletLabel);
                             setCanLaunchScan(ok);
                             initCellsWithContainer(currentMultipleContainer);
                             currentMultipleContainer.setLabel(palletLabel);
@@ -696,25 +697,18 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
     @SuppressWarnings("nls")
     private boolean checkAndUpdateContainer(ContainerWrapper container, String palletLabel) {
         try {
-            List<ContainerTypeWrapper> possibleTypes = new ArrayList<ContainerTypeWrapper>(0);
-            ContainerTypeWrapper typeSelection = container.getContainerType();
-            ContainerWrapper parentContainer = container.getParentContainer();
+            ContainerTypeWrapper typeSelection;
+            List<ContainerTypeWrapper> possibleTypes =
+                ScanAssignHelper.getContainerTypes(container, useScanner);
 
-            if (parentContainer != null) {
-                possibleTypes.addAll(getPossibleTypes(
-                    parentContainer.getContainerType().getChildContainerTypeCollection()));
-                if (possibleTypes.size() == 1) {
-                    typeSelection = possibleTypes.get(0);
-                }
+            if (possibleTypes.size() == 1) {
+                typeSelection = possibleTypes.get(0);
             } else {
-                possibleTypes.add(container.getContainerType());
+                typeSelection = container.getContainerType();
             }
-
-            boolean enableTypesCombo = true;
 
             if (!checkExistingContainerValid(container)) return false;
 
-            enableTypesCombo = false;
             String newBarcode = currentMultipleContainer.getProductBarcode();
 
             currentMultipleContainer.initObjectWith(container);
@@ -728,7 +722,7 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
                 palletproductBarcodeText.setText(newBarcode);
             }
 
-            palletTypesViewer.getCombo().setEnabled(enableTypesCombo);
+            palletTypesViewer.getCombo().setEnabled(false);
             palletTypesViewer.setInput(possibleTypes);
             if (possibleTypes.isEmpty()) {
                 BgcPlugin.openAsyncError(
@@ -839,26 +833,9 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
             currentMultipleContainer.getSite().getNameShort()));
     }
 
-    /**
-     * is use scanner, want only 8*12 or 10*10 pallets. Also check the container type can hold
-     * specimens
-     */
-    private List<ContainerTypeWrapper> getPossibleTypes(
-        List<ContainerTypeWrapper> childContainerTypeCollection) {
-        List<ContainerTypeWrapper> palletTypes = new ArrayList<ContainerTypeWrapper>();
-        for (ContainerTypeWrapper type : childContainerTypeCollection) {
-            if (!type.getSpecimenTypeCollection().isEmpty()
-                && (!useScanner || ScanAssignHelper.isPalletScannable(type)))
-                palletTypes.add(type);
-        }
-        return palletTypes;
-    }
-
     @SuppressWarnings("nls")
     protected boolean checkMultipleScanBarcode() {
         try {
-            initWithProduct = false;
-
             Container qryContainer = new Container();
             qryContainer.setProductBarcode(currentMultipleContainer.getProductBarcode());
             List<Container> containers = SessionManager.getAppService().doAction(
@@ -884,7 +861,6 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
 
             currentMultipleContainer.initObjectWith(palletFoundWithProductBarcode);
             currentMultipleContainer.reset();
-            initWithProduct = true;
 
             palletLabelText.setText(palletFoundWithProductBarcode.getLabel());
 
@@ -1152,7 +1128,6 @@ public class SpecimenAssignEntryForm extends AbstractLinkAssignEntryForm {
         foundSpecNull.setValue(true);
         singleSpecimen.reset(); // reset internal values
         setDirty(false);
-        initWithProduct = false;
         if (mode.isSingleMode()) {
             focusControl(inventoryIdText);
         } else if (useScanner) {
