@@ -390,7 +390,7 @@ public class SpecimenLinkEntryForm extends AbstractLinkAssignEntryForm implement
         singleTypesWidget.setEnabled(ok);
         newSinglePositionText.setEnabled(ok);
         canSaveSingleSpecimen.setValue(ok);
-        if (!ok) focusControl(inventoryIdText);
+        if (!ok) BgcPlugin.focusControl(inventoryIdText);
 
     }
 

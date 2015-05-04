@@ -29,6 +29,7 @@ import org.xnap.commons.i18n.I18nFactory;
 import edu.ualberta.med.biobank.SessionManager;
 import edu.ualberta.med.biobank.common.action.container.ContainerGetInfoAction;
 import edu.ualberta.med.biobank.common.util.StringUtil;
+import edu.ualberta.med.biobank.common.wrappers.ContainerTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.ContainerWrapper;
 import edu.ualberta.med.biobank.gui.common.BgcPlugin;
 import edu.ualberta.med.biobank.gui.common.validators.NonEmptyStringValidator;
@@ -77,8 +78,6 @@ public class ScanAssignDialog extends ScanLinkDialog
     private ContainerWrapper palletContainer;
 
     private boolean palletLabelTextModified;
-
-    private boolean palletPositionTextModified;
 
     public ScanAssignDialog(Shell parentShell, org.apache.log4j.Logger activityLogger) {
         super(parentShell, activityLogger);
@@ -132,8 +131,6 @@ public class ScanAssignDialog extends ScanLinkDialog
         palletBarcodeText.setLayoutData(gridData);
         palletBarcodeText.addModifyListener(this);
         palletBarcodeText.addFocusListener(this);
-
-        super.createControlWidgets(contents);
 
         palletLabelValidator = new NonEmptyStringValidator(
             // TR: validation error message
@@ -207,8 +204,12 @@ public class ScanAssignDialog extends ScanLinkDialog
 
     private void palletLabelTextModified() {
         palletLabelTextModified = true;
+        palletBarcodeText.setText(StringUtil.EMPTY_STRING);
         palletTypes.setInput(null);
         // log.debug("clearing selections in palletTypesViewer");
+        if (palletContainer == null) {
+            log.info("here");
+        }
         palletContainer.setContainerType(null);
     }
 
@@ -297,14 +298,15 @@ public class ScanAssignDialog extends ScanLinkDialog
     }
 
     private void palletLabelTextFocusLost() {
+        final String label = (String) palletLabel.getValue();
+
         if (palletLabelText.isEnabled() && palletLabelTextModified
-            && palletLabelValidator.validate(palletLabelText.getText()).equals(Status.OK_STATUS)) {
+            && palletLabelValidator.validate(label).equals(Status.OK_STATUS)) {
             BusyIndicator.showWhile(Display.getDefault(), new Runnable() {
                 @SuppressWarnings("nls")
                 @Override
                 public void run() {
                     checkingPalletPosition = true;
-                    String label = (String) palletLabel.getValue();
                     palletContainer = ScanAssignHelper.getOrCreateContainerByLabel(label, palletContainer);
 
                     if (palletContainer == null) {
@@ -313,26 +315,99 @@ public class ScanAssignDialog extends ScanLinkDialog
                         return;
                     }
 
-                    boolean ok = checkAndUpdatePallet(palletContainer, label);
+                    log.info("palletContainer: label: {}, containerLabel", label, palletContainer.getLabel());
+                    log.info("palletContainer: barcode: {}", palletContainer.getProductBarcode());
 
-                    // setCanLaunchScan(ok);
-                    // initCellsWithContainer(currentMultipleContainer);
-                    // currentMultipleContainer.setLabel(palletPositionText.getText());
-                    // if (!ok) {
-                    // focusControl(palletPositionText);
-                    // showOnlyPallet(true);
-                    // } else if (palletTypesViewer.getCombo().getEnabled()) {
-                    // focusControl(palletTypesViewer.getCombo());
-                    // }
-                    // palletPositionTextModified = false;
+                    boolean ok = checkAndUpdateContainer(palletContainer, label);
+
+                    palletContainer.setLabel(label);
+                    if (!ok) {
+                        BgcPlugin.focusControl(palletLabelText);
+                    } else if (palletTypes.getCombo().getEnabled()) {
+                        BgcPlugin.focusControl(palletTypes.getCombo());
+                    }
                 }
             });
         }
-        palletPositionTextModified = false;
     }
 
-    private boolean checkAndUpdatePallet(ContainerWrapper pallet, String label) {
-        // TODO Auto-generated method stub
-        return false;
+    @SuppressWarnings("nls")
+    private boolean checkAndUpdateContainer(ContainerWrapper container, String palletLabel) {
+        try {
+            ContainerTypeWrapper typeSelection;
+            List<ContainerTypeWrapper> possibleTypes = ScanAssignHelper.getContainerTypes(container, true);
+
+            if (possibleTypes.size() == 1) {
+                typeSelection = possibleTypes.get(0);
+            } else {
+                typeSelection = container.getContainerType();
+            }
+
+            if (!checkValidContainer(container)) return false;
+
+            String newBarcode = container.getProductBarcode();
+
+            log.info("checkAndUpdateContainer: container: label: {}", palletLabel);
+            log.info("checkAndUpdateContainer: container: barcode: {}", newBarcode);
+
+            if (!palletContainer.isNew()) {
+                palletContainer.reset();
+            }
+
+            activityLogger.trace(ScanAssignHelper.containerProductBarcodeUpdateLogMessage(
+                container, newBarcode, palletLabel));
+
+            if ((newBarcode != null) && !newBarcode.isEmpty()) {
+                palletBarcodeText.setText(newBarcode);
+            }
+
+            palletTypes.getCombo().setEnabled(false);
+            palletTypes.setInput(possibleTypes);
+            if (possibleTypes.isEmpty()) {
+                BgcPlugin.openAsyncError(
+                    // TR: dialog title
+                    i18n.tr("Containers Error"),
+                    // TR: dialog message
+                    i18n.tr("No container type that can hold specimens has been found "
+                        + "(if scanner is used, the container should be of size 8*12 or 10*10)"));
+                typeSelection = null;
+                return false;
+            }
+            palletTypes.getCombo().setEnabled(possibleTypes.size() > 1);
+
+            if (typeSelection == null) {
+                palletTypes.getCombo().deselectAll();
+            } else {
+                palletTypes.setSelection(new StructuredSelection(typeSelection));
+            }
+        } catch (Exception ex) {
+            BgcPlugin.openError(
+                // TR: dialog title
+                i18n.tr("Values validation"), ex);
+            activityLogger.trace(NLS.bind("ERROR: {0}", ex.getMessage()));
+            return false;
+        }
+
+        return true;
+    }
+
+    @SuppressWarnings("nls")
+    private boolean checkValidContainer(ContainerWrapper pallet) {
+        switch (ScanAssignHelper.checkExistingContainerValid(pallet)) {
+        case VALID:
+        case IS_NEW:
+            return true;
+
+        case DOES_NOT_HOLD_SPECIMENS:
+            BgcPlugin.openError(
+                // TR: dialog title
+                i18n.tr("Error"),
+                // TR: dialog message
+                i18n.tr("Container selected can't hold specimens"));
+            return false;
+
+        default:
+            throw new IllegalArgumentException("container is invalid");
+        }
     }
 }

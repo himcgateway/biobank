@@ -24,7 +24,6 @@ import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -378,15 +377,6 @@ public abstract class AbstractPalletSpecimenAdminForm extends AbstractSpecimenAd
 
     protected boolean isAtLeastOneScanLaunched() {
         return palletScanManagement.getScansCount() > 0;
-    }
-
-    protected void focusControl(final Control control) {
-        Display.getDefault().asyncExec(new Runnable() {
-            @Override
-            public void run() {
-                control.setFocus();
-            }
-        });
     }
 
     protected void initCellsWithContainer(ContainerWrapper currentMultipleContainer) {

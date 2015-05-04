@@ -1,5 +1,6 @@
 package edu.ualberta.med.biobank.helpers;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,12 +8,15 @@ import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.ui.PlatformUI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xnap.commons.i18n.I18n;
 import org.xnap.commons.i18n.I18nFactory;
 
 import edu.ualberta.med.biobank.SessionManager;
 import edu.ualberta.med.biobank.common.action.container.ContainerGetContainerOrParentsByLabelAction;
 import edu.ualberta.med.biobank.common.action.container.ContainerGetContainerOrParentsByLabelAction.ContainerData;
+import edu.ualberta.med.biobank.common.util.StringUtil;
 import edu.ualberta.med.biobank.common.wrappers.ContainerTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.ContainerWrapper;
 import edu.ualberta.med.biobank.dialogs.select.SelectParentContainerDialog;
@@ -24,6 +28,8 @@ import edu.ualberta.med.scannerconfig.PalletDimensions;
 public class ScanAssignHelper {
 
     private static final I18n i18n = I18nFactory.getI18n(ScanAssignHelper.class);
+
+    private static Logger log = LoggerFactory.getLogger(ScanAssignHelper.class);
 
     @SuppressWarnings("nls")
     public static boolean isContainerValid(ContainerWrapper palletContainer, String positionText) {
@@ -86,8 +92,13 @@ public class ScanAssignHelper {
             container = parentContainer.getChildByLabel(
                 palletLabel.substring(parentContainer.getLabel().length()));
 
+            log.info("getOrCreateContainerByLabel: label: {}, parent container label: {}",
+                palletLabel, parentContainer.getLabel());
+            // log.info("getOrCreateContainerByLabel: barcode: {}", container.getProductBarcode());
+
             if (container == null) {
                 // no container at this position right now, create one
+                log.info("getOrCreateContainerByLabel: creating new container at label: {}", palletLabel);
                 String childLabel = palletLabel.substring(parentContainer.getLabel().length());
                 parentContainer.addChild(childLabel, currentContainer);
                 container = currentContainer;
@@ -163,7 +174,6 @@ public class ScanAssignHelper {
 
     public static List<ContainerTypeWrapper> getContainerTypes(
         ContainerWrapper container, boolean usingFlatbedScanner) {
-        // try {
         List<ContainerTypeWrapper> possibleTypes = new ArrayList<ContainerTypeWrapper>(0);
         ContainerWrapper parentContainer = container.getParentContainer();
 
@@ -176,7 +186,6 @@ public class ScanAssignHelper {
         }
 
         return possibleTypes;
-        // }
     }
 
     /**
@@ -207,5 +216,60 @@ public class ScanAssignHelper {
                 return true;
         }
         return false;
+    }
+
+    @SuppressWarnings("nls")
+    public static ContainerValid checkExistingContainerValid(ContainerWrapper container) {
+        if (container == null) {
+            throw new IllegalStateException("container is null");
+        }
+
+        if (container.isNew()) return ContainerValid.IS_NEW;
+
+        // only perform checks for existing containers
+        ContainerTypeWrapper containerType = container.getContainerType();
+        if ((containerType != null) && containerType.getSpecimenTypeCollection().isEmpty()) {
+            return ContainerValid.DOES_NOT_HOLD_SPECIMENS;
+        }
+        return ContainerValid.VALID;
+    }
+
+    /**
+     * Returns a string stating that the container's product barcode will be updated.
+     */
+    @SuppressWarnings("nls")
+    public static String containerProductBarcodeUpdateLogMessage(ContainerWrapper container,
+        String palletProductBarcode, String palletLabel) {
+        // only perform checks for existing containers
+        if (container.isNew()) {
+            return StringUtil.EMPTY_STRING;
+        }
+
+        if (container.getContainerType().getSpecimenTypeCollection().isEmpty()) {
+            throw new IllegalStateException(
+                "invalid container, cannot hold specimens");
+        }
+
+        // container has no product barcode: update it with the one entered by
+        // user
+        if (container.hasSpecimens()) {
+            // Position already physically used but no barcode was
+            // set (old database compatibility)
+            return MessageFormat.format(
+                "Position {0} already used with no product barcode and with type {1}."
+                    + " Product barcode {2} will be set.",
+                palletLabel, container.getContainerType().getName(), palletProductBarcode);
+        }
+
+        // Position initialised but not physically used
+        return MessageFormat.format(
+            "Position {0} initialised with type {1} and free to be used",
+            palletLabel, container.getContainerType().getName());
+    }
+
+    public enum ContainerValid {
+        VALID, // is a valid container to scan assign into
+        IS_NEW, // is a new container
+        DOES_NOT_HOLD_SPECIMENS // does not hold specimens
     }
 }

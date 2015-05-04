@@ -670,7 +670,7 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
                         appendLog(NLS.bind(
                             "ERROR: Container cannot hold specimens: {0}",
                             positionString));
-                        focusControl(positionField);
+                        BgcPlugin.focusControl(positionField);
                         return;
                     } else if ((singleSpecimen.getSpecimenType() != null)
                         && !specimenTypeCollection.contains(singleSpecimen.getSpecimenType())) {
@@ -683,7 +683,7 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
                         appendLog(NLS.bind(
                             "ERROR: Container {0} cannot hold specimens of type \"{1}\"",
                             positionString, singleSpecimen.getSpecimenType()));
-                        focusControl(positionField);
+                        BgcPlugin.focusControl(positionField);
                         return;
                     }
 
@@ -702,7 +702,7 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
                         appendLog(NLS.bind(
                             "ERROR: Position {0} already in use in container {1}",
                             positionString, parentContainers.get(0).getLabel()));
-                        focusControl(positionField);
+                        BgcPlugin.focusControl(positionField);
                         return;
                     }
                     setDirty(true);
@@ -715,13 +715,13 @@ public abstract class AbstractLinkAssignEntryForm extends AbstractPalletSpecimen
                         bce);
                     appendLog("ERROR: "
                         + bce.getMessage());
-                    focusControl(inventoryIdField);
+                    BgcPlugin.focusControl(inventoryIdField);
                 } catch (Exception e) {
                     BgcPlugin.openError(
                         // TR: dialog title
                         i18n.tr("Error while checking position"),
                         e);
-                    focusControl(positionField);
+                    BgcPlugin.focusControl(positionField);
                 }
             }
         });
