@@ -515,8 +515,13 @@ public class SpecimenLinkAndAssignForm
             return;
         }
 
+        Capacity capacity = getContainerType().getCapacity();
+
         ScanAssignDialog dialog =
-            new ScanAssignDialog(Display.getDefault().getActiveShell(), activityLogger);
+            new ScanAssignDialog(Display.getDefault().getActiveShell(),
+                capacity.getRowCapacity(),
+                capacity.getColCapacity(),
+                activityLogger);
 
         if (dialog.open() == Dialog.OK) {
 

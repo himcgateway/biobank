@@ -1,15 +1,14 @@
 package edu.ualberta.med.biobank.dialogs;
 
 import java.text.MessageFormat;
-import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.core.databinding.observable.value.IObservableValue;
 import org.eclipse.core.databinding.observable.value.WritableValue;
+import org.eclipse.core.databinding.validation.ValidationStatus;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.dialogs.IDialogSettings;
-import org.eclipse.jface.viewers.ComboViewer;
-import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.BusyIndicator;
@@ -32,12 +31,12 @@ import edu.ualberta.med.biobank.common.util.StringUtil;
 import edu.ualberta.med.biobank.common.wrappers.ContainerTypeWrapper;
 import edu.ualberta.med.biobank.common.wrappers.ContainerWrapper;
 import edu.ualberta.med.biobank.gui.common.BgcPlugin;
+import edu.ualberta.med.biobank.gui.common.validators.AbstractValidator;
 import edu.ualberta.med.biobank.gui.common.validators.NonEmptyStringValidator;
 import edu.ualberta.med.biobank.gui.common.widgets.BgcBaseText;
-import edu.ualberta.med.biobank.gui.common.widgets.utils.ComboSelectionUpdate;
 import edu.ualberta.med.biobank.helpers.ScanAssignHelper;
+import edu.ualberta.med.biobank.model.Capacity;
 import edu.ualberta.med.biobank.model.Container;
-import edu.ualberta.med.biobank.widgets.BiobankLabelProvider;
 
 public class ScanAssignDialog extends ScanLinkDialog
     implements ModifyListener, FocusListener {
@@ -63,15 +62,15 @@ public class ScanAssignDialog extends ScanLinkDialog
 
     private final IObservableValue palletLabel = new WritableValue(StringUtil.EMPTY_STRING, String.class);
 
-    private NonEmptyStringValidator palletBarcodeValidator;
+    private PalletBarcodeValidator palletBarcodeValidator;
 
     private NonEmptyStringValidator palletLabelValidator;
 
-    private ComboViewer palletTypes;
-
     protected boolean palletBarcodeTextModified;
 
-    private boolean checkingPalletPosition;
+    private Boolean palletBardcodeValid = null;
+
+    private boolean checkingPalletLabel = false;
 
     private boolean isNewMultipleContainer;
 
@@ -79,8 +78,23 @@ public class ScanAssignDialog extends ScanLinkDialog
 
     private boolean palletLabelTextModified;
 
-    public ScanAssignDialog(Shell parentShell, org.apache.log4j.Logger activityLogger) {
+    private final int validPalletRows;
+
+    private final int validPalletCols;
+
+    /**
+     * 
+     * 
+     * @param parentShell
+     * @param rows The number of rows allowed for the container type.
+     * @param cols The number of columns allowed for the container type.
+     * @param activityLogger
+     */
+    public ScanAssignDialog(Shell parentShell, int rows, int cols,
+        org.apache.log4j.Logger activityLogger) {
         super(parentShell, activityLogger);
+        this.validPalletRows = rows;
+        this.validPalletCols = cols;
         this.activityLogger = activityLogger;
         this.palletContainer = new ContainerWrapper(SessionManager.getAppService());
     }
@@ -110,9 +124,7 @@ public class ScanAssignDialog extends ScanLinkDialog
     protected void createControlWidgets(Composite contents) {
         super.createControlWidgets(contents);
 
-        palletBarcodeValidator = new NonEmptyStringValidator(
-            // TR: validation error message
-            i18n.tr("Enter the pallet's product barcode"));
+        palletBarcodeValidator = new PalletBarcodeValidator();
         palletBarcodeText = (BgcBaseText) widgetCreator.createBoundWidgetWithLabel(
             contents,
             BgcBaseText.class,
@@ -153,34 +165,6 @@ public class ScanAssignDialog extends ScanLinkDialog
 
         palletLabelText.addModifyListener(this);
         palletLabelText.addFocusListener(this);
-
-        palletTypes = widgetCreator.createComboViewer(
-            contents,
-            // TR: validation error message
-            i18n.tr("Pallet type"),
-            null,
-            null,
-            // TR: validation error message
-            i18n.tr("Please select the pallet type"),
-            false,
-            null,
-            new ComboSelectionUpdate() {
-                @Override
-                public void doSelection(Object selectedObject) {
-                    // sourceSelected.setValue(selectedObject != null);
-                    //
-                    // Specimen spc = (Specimen) selectedObject;
-                    // sourceChildTypes = spc.getSpecimenType().getChildSpecimenTypes();
-                    // cvAliquots.refresh();
-                }
-            },
-            new BiobankLabelProvider());
-
-        gridData = new GridData();
-        gridData.grabExcessHorizontalSpace = true;
-        gridData.horizontalAlignment = SWT.FILL;
-        gridData.horizontalSpan = 2;
-        palletTypes.getCombo().setLayoutData(gridData);
     }
 
     @Override
@@ -193,9 +177,8 @@ public class ScanAssignDialog extends ScanLinkDialog
     }
 
     private void palletBarcodeTextModified() {
-        if (!checkingPalletPosition) {
+        if (!checkingPalletLabel) {
             palletBarcodeTextModified = true;
-            palletTypes.setInput(null);
             palletContainer.setContainerType(null);
             palletLabelText.setEnabled(true);
             palletLabelText.setText(StringUtil.EMPTY_STRING);
@@ -205,7 +188,6 @@ public class ScanAssignDialog extends ScanLinkDialog
     private void palletLabelTextModified() {
         palletLabelTextModified = true;
         palletBarcodeText.setText(StringUtil.EMPTY_STRING);
-        palletTypes.setInput(null);
         // log.debug("clearing selections in palletTypesViewer");
         if (palletContainer == null) {
             log.info("here");
@@ -228,17 +210,18 @@ public class ScanAssignDialog extends ScanLinkDialog
     }
 
     private void palletBarcodeTextFocusLost() {
-        if (palletBarcodeTextModified
-            && palletBarcodeValidator.validate(
-                palletBarcode.getValue()).equals(Status.OK_STATUS)) {
-            boolean ok = checkPalletBarcode();
-            if (!ok) {
-                Display.getDefault().asyncExec(new Runnable() {
-                    @Override
-                    public void run() {
-                        palletBarcodeText.setFocus();
-                    }
-                });
+        if (palletBarcodeTextModified) {
+            String value = (String) palletBarcode.getValue();
+            if (!value.isEmpty()) {
+                boolean ok = checkPalletBarcode();
+                if (!ok) {
+                    Display.getDefault().asyncExec(new Runnable() {
+                        @Override
+                        public void run() {
+                            palletBarcodeText.setFocus();
+                        }
+                    });
+                }
             }
         }
         palletBarcodeTextModified = false;
@@ -249,6 +232,8 @@ public class ScanAssignDialog extends ScanLinkDialog
         try {
             Container qryContainer = new Container();
             qryContainer.setProductBarcode((String) palletBarcode.getValue());
+
+            palletBardcodeValid = null;
             List<Container> containers = SessionManager.getAppService().doAction(
                 new ContainerGetInfoAction(qryContainer,
                     SessionManager.getUser().getCurrentWorkingSite().getWrappedObject())
@@ -264,19 +249,34 @@ public class ScanAssignDialog extends ScanLinkDialog
 
             palletContainer = new ContainerWrapper(SessionManager.getAppService(), containers.get(0));
             isNewMultipleContainer = false;
+            Capacity capacity = palletContainer.getContainerType().getCapacity();
+            palletLabelText.setText(palletContainer.getLabel());
+
+            if ((capacity.getRowCapacity() != validPalletRows)
+                || (capacity.getColCapacity() != validPalletCols)) {
+
+                // TR: dialog message
+                String msg = i18n.tr("Container dimensions are invalid for the pallet that was scanned. "
+                    + "Container with product barcode \"{0}\" has {1} rows and {2} columns.",
+                    qryContainer.getProductBarcode(),
+                    capacity.getRowCapacity(),
+                    capacity.getColCapacity());
+
+                BgcPlugin.openError(
+                    // TR: dialog title
+                    i18n.tr("Invalid container"),
+                    msg);
+                activityLogger.trace(NLS.bind("ERROR: {0}", msg));
+                return false;
+            }
 
             if (!ScanAssignHelper.isContainerValid(
                 palletContainer, palletLabelText.getText())) {
                 return false;
             }
 
-            palletLabelText.setText(palletContainer.getLabel());
+            palletBardcodeValid = true;
 
-            // display the type, which can't be modified.
-            palletTypes.getCombo().setEnabled(false);
-            palletTypes.setInput(Arrays.asList(palletContainer.getContainerType()));
-            palletTypes.setSelection(
-                new StructuredSelection(palletContainer.getContainerType()));
             activityLogger.trace(MessageFormat.format(
                 "Product barcode {0} already exists at position {1} of site {2} with type {3}.",
                 palletContainer.getProductBarcode(),
@@ -286,7 +286,6 @@ public class ScanAssignDialog extends ScanLinkDialog
 
             // can't modify the position if exists already
             palletLabelText.setEnabled(false);
-
         } catch (Exception ex) {
             BgcPlugin.openError(
                 // TR: dialog title
@@ -306,7 +305,7 @@ public class ScanAssignDialog extends ScanLinkDialog
                 @SuppressWarnings("nls")
                 @Override
                 public void run() {
-                    checkingPalletPosition = true;
+                    checkingPalletLabel = true;
                     palletContainer = ScanAssignHelper.getOrCreateContainerByLabel(label, palletContainer);
 
                     if (palletContainer == null) {
@@ -323,8 +322,6 @@ public class ScanAssignDialog extends ScanLinkDialog
                     palletContainer.setLabel(label);
                     if (!ok) {
                         BgcPlugin.focusControl(palletLabelText);
-                    } else if (palletTypes.getCombo().getEnabled()) {
-                        BgcPlugin.focusControl(palletTypes.getCombo());
                     }
                 }
             });
@@ -334,14 +331,7 @@ public class ScanAssignDialog extends ScanLinkDialog
     @SuppressWarnings("nls")
     private boolean checkAndUpdateContainer(ContainerWrapper container, String palletLabel) {
         try {
-            ContainerTypeWrapper typeSelection;
             List<ContainerTypeWrapper> possibleTypes = ScanAssignHelper.getContainerTypes(container, true);
-
-            if (possibleTypes.size() == 1) {
-                typeSelection = possibleTypes.get(0);
-            } else {
-                typeSelection = container.getContainerType();
-            }
 
             if (!checkValidContainer(container)) return false;
 
@@ -361,8 +351,6 @@ public class ScanAssignDialog extends ScanLinkDialog
                 palletBarcodeText.setText(newBarcode);
             }
 
-            palletTypes.getCombo().setEnabled(false);
-            palletTypes.setInput(possibleTypes);
             if (possibleTypes.isEmpty()) {
                 BgcPlugin.openAsyncError(
                     // TR: dialog title
@@ -370,15 +358,7 @@ public class ScanAssignDialog extends ScanLinkDialog
                     // TR: dialog message
                     i18n.tr("No container type that can hold specimens has been found "
                         + "(if scanner is used, the container should be of size 8*12 or 10*10)"));
-                typeSelection = null;
                 return false;
-            }
-            palletTypes.getCombo().setEnabled(possibleTypes.size() > 1);
-
-            if (typeSelection == null) {
-                palletTypes.getCombo().deselectAll();
-            } else {
-                palletTypes.setSelection(new StructuredSelection(typeSelection));
             }
         } catch (Exception ex) {
             BgcPlugin.openError(
@@ -409,5 +389,35 @@ public class ScanAssignDialog extends ScanLinkDialog
         default:
             throw new IllegalArgumentException("container is invalid");
         }
+    }
+
+    private class PalletBarcodeValidator extends AbstractValidator {
+
+        @SuppressWarnings("nls")
+        public PalletBarcodeValidator() {
+            // TR: validation error message
+            super(i18n.tr("Enter the pallet's label"));
+        }
+
+        @Override
+        public IStatus validate(Object value) {
+            if (value != null) {
+                if (!(value instanceof String)) {
+                    throw new RuntimeException();
+                }
+
+                String strValue = (String) value;
+                if (strValue.length() != 0) {
+                    hideDecoration();
+
+                    if ((palletBardcodeValid != null) && palletBardcodeValid) {
+                        return Status.OK_STATUS;
+                    }
+                }
+            }
+            showDecoration();
+            return ValidationStatus.error(errorMessage);
+        }
+
     }
 }
